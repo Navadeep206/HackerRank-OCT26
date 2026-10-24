@@ -173,7 +173,7 @@ class GeminiVisionProvider:
         self._types = types
         self._client = genai.Client(
             api_key=os.environ["GEMINI_API_KEY"],
-            http_options=types.HttpOptions(timeout=config.request_timeout_seconds),
+            http_options=types.HttpOptions(timeout=int(config.request_timeout_seconds * 1000)),
         )
         self._model = config.model_name
 
