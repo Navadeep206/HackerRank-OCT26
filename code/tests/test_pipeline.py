@@ -26,7 +26,14 @@ class PipelineTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.dataset = self.root / "dataset"
         (self.dataset / "images").mkdir(parents=True)
-        Image.new("RGB", (640, 480), "white").save(self.dataset / "images/img_1.jpg")
+        image = Image.new("RGB", (640, 480), "white")
+        from PIL import ImageDraw
+        draw = ImageDraw.Draw(image)
+        for x in range(0, 640, 32):
+            draw.line((x, 0, x, 480), fill=(40, 80, 120), width=3)
+        for y in range(0, 480, 32):
+            draw.line((0, y, 640, y), fill=(120, 80, 40), width=3)
+        image.save(self.dataset / "images/img_1.jpg")
         with (self.dataset / "evidence_requirements.csv").open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=["requirement_id", "claim_object", "applies_to", "minimum_image_evidence"])
             w.writeheader()

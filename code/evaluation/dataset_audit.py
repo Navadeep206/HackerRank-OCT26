@@ -36,7 +36,7 @@ def detect_format(path):
 def count(rows,key): return dict(sorted(collections.Counter(r.get(key,"") for r in rows).items()))
 def audit():
  errors=[]; warnings=[]
- required=[DATA/"claims.csv",DATA/"sample_claims.csv",DATA/"user_history.csv",DATA/"evidence_requirements.csv",ROOT/"code/main.py",ROOT/"code/evaluation/main.py"]
+ required=[DATA/"claims.csv",DATA/"sample_claims.csv",DATA/"user_history.csv",DATA/"evidence_requirements.csv",ROOT/"code/run_pipeline.py",ROOT/"code/evaluation/evaluate_predictions.py"]
  missing_required=[str(p.relative_to(ROOT)) for p in required if not p.is_file()]
  if missing_required: errors.append("Missing required files: "+", ".join(missing_required))
  try:

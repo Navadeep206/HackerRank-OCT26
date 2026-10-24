@@ -85,6 +85,8 @@ PROMPT_INJECTION_PATTERNS = (
     r"\b(?:approve|accept|pay)\s+(?:this\s+)?claim\s+(?:automatically|regardless|without review)\b",
     r"\bignore\s+(?:the\s+)?evidence\b",
     r"\boverride\s+(?:the\s+)?(?:system|review|decision)\b",
+    r"\bignore\s+(?:the\s+)?rules?\b",
+    r"\bapprove\s+(?:this\s+)?automatically\b",
 )
 MULTILINGUAL_HINTS = {
     "hi": ("kharoch", "toot", "damage hai", "nuksan"),
@@ -192,7 +194,9 @@ def extract_claim_intent(user_claim: str, claim_object: str | None = None) -> Cl
     negated: list[str] = []
     positive: list[tuple[IssueType, str, int]] = []
     for issue, alias, start in mentions:
-        if _is_negated(text, alias, start):
+        part_correction_after = re.search(r"\bnot\s+(?:the\s+)?(?:screen|display|keyboard|hinge|door|bumper|hood|windshield|headlight|mirror|box|seal|label)\b", text[start + len(alias):])
+        if _is_negated(text, alias, start) or part_correction_after:
+            # Record that the issue is disclaimed for a corrected part without erasing its positive mention.
             if issue not in negated:
                 negated.append(issue)
         elif not any(existing[0] == issue and abs(existing[2] - start) < 40 for existing in positive):
