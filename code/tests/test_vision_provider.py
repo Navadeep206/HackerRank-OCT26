@@ -86,6 +86,22 @@ class VisionProviderTests(unittest.TestCase):
             self.assertFalse(finding.relevance_confirmed)
             self.assertEqual(finding.confidence, 0.0)
 
+    def test_rejects_non_finite_confidence(self):
+        import math
+        with self.assertRaises(VisionProviderError):
+            validate_finding(valid_payload(confidence=float("nan")), expected_object="laptop", image_id="x")
+        with self.assertRaises(VisionProviderError):
+            validate_finding(valid_payload(confidence=float("inf")), expected_object="laptop", image_id="x")
+
+    def test_redacts_credentials_in_summary(self):
+        finding = validate_finding(
+            valid_payload(visual_summary="Found API key sk-abcdef12345678901234567890 in photo"),
+            expected_object="laptop",
+            image_id="img",
+        )
+        self.assertNotIn("sk-abcdef", finding.visual_summary)
+        self.assertIn("[REDACTED]", finding.visual_summary)
+
 
 if __name__ == "__main__":
     unittest.main()

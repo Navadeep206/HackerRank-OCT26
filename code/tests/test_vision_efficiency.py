@@ -107,6 +107,18 @@ class VisionEfficiencyTests(unittest.TestCase):
         self.assertEqual(base.calls, 2)
         self.assertEqual(clock.sleeps, [2.0])
 
+    def test_cache_disabled_does_not_hit_or_store(self):
+        base = CountingProvider()
+        wrapped = EfficientVisionProvider(
+            base, cache_path=self.root / "cache.sqlite3", cache_enabled=False,
+            requests_per_minute=600, provider_name="fake", model_name="test-v1",
+            sleep=lambda _: None,
+        )
+        wrapped.analyze(self.image, claim_object="laptop", user_claim="first")
+        wrapped.analyze(self.image, claim_object="laptop", user_claim="first")
+        self.assertEqual(base.calls, 2)
+        self.assertEqual(wrapped.cache_hits, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

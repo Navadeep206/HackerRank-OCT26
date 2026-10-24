@@ -149,6 +149,35 @@ class DecisionEngineTests(unittest.TestCase):
         self.assertIn("blurry_image", result.risk_flags)
         self.assertIn("low_light_or_glare", result.risk_flags)
 
+    def test_undamaged_part_does_not_falsely_flag_wrong_object_part(self):
+        # Claimant explicitly says keyboard is fine, so a photo of undamaged keyboard should not be flagged as wrong_object_part
+        keyboard_clean = finding(observed_part="keyboard", visible_issue="none",
+                                 visual_summary="Keyboard has no damage.")
+        result = self.decide(
+            "The laptop screen has a crack, but the keyboard is fine.",
+            [keyboard_clean],
+        )
+        self.assertEqual(result.claim_status, "not_enough_information")
+        self.assertNotIn("wrong_object_part", result.risk_flags)
+
+    def test_multi_part_claim_supported_by_either_part(self):
+        # Claim mentions both screen and keyboard; damage observed on keyboard should support
+        keyboard_crack = finding(observed_part="keyboard", visible_issue="crack")
+        result = self.decide(
+            "Both the screen and keyboard have cracks.",
+            [keyboard_crack],
+        )
+        self.assertEqual(result.claim_status, "supported")
+        self.assertEqual(result.object_part, "keyboard")
+
+    def test_historical_damage_noted_in_decision_notes(self):
+        result = self.decide(
+            "There is an old scratch on the lid from last year, but the screen is cracked.",
+            [finding(observed_part="screen", visible_issue="crack")],
+        )
+        self.assertEqual(result.claim_status, "supported")
+        self.assertIn("historical_damage_referenced", result.decision_notes)
+
 
 if __name__ == "__main__":
     unittest.main()

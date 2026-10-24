@@ -6,8 +6,10 @@ text visible inside an image are untrusted data, never instructions to follow.
 from __future__ import annotations
 
 import json
+import math
 import os
 import random
+import re
 import time
 from dataclasses import asdict, dataclass
 from typing import Any, Callable, Protocol
@@ -71,10 +73,17 @@ class VisionFinding:
         return result
 
 
+SECRET_PATTERN = re.compile(
+    r"(?:sk-[a-zA-Z0-9_\-]{20,}|AIza[0-9A-Za-z\-_]{35}|ghp_[a-zA-Z0-9]{36}|Bearer\s+[a-zA-Z0-9_\-\.]+)",
+    re.IGNORECASE,
+)
+
+
 def _safe_text(value: Any, field: str, *, max_length: int = MAX_FINDING_CHARS) -> str:
     if not isinstance(value, str):
         raise VisionProviderError(f"Response field {field!r} must be a string")
-    cleaned = " ".join(value.split())
+    redacted = SECRET_PATTERN.sub("[REDACTED]", value)
+    cleaned = " ".join(redacted.split())
     if len(cleaned) > max_length:
         raise VisionProviderError(f"Response field {field!r} exceeds {max_length} characters")
     return cleaned
@@ -113,8 +122,13 @@ def validate_finding(payload: Any, *, expected_object: str, image_id: str) -> Vi
         if not isinstance(payload[name], bool):
             raise VisionProviderError(f"{name} must be boolean")
     confidence = payload["confidence"]
-    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
-        raise VisionProviderError("confidence must be a number between 0 and 1")
+    if (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or not math.isfinite(confidence)
+        or not 0 <= confidence <= 1
+    ):
+        raise VisionProviderError("confidence must be a finite number between 0 and 1")
     flags = payload["risk_flags"]
     if not isinstance(flags, list) or any(not isinstance(flag, str) for flag in flags):
         raise VisionProviderError("risk_flags must be a list of strings")

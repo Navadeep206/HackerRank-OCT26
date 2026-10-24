@@ -149,25 +149,43 @@ def decide_claim(
 
     target_issue = intent.issue_type
     target_part = intent.object_part
+    claimed_parts = intent.claimed_parts or ((target_part,) if target_part != "unknown" else ())
+    claimed_issues = intent.claimed_issues or ((target_issue,) if target_issue != "unknown" else ())
+    undamaged_parts = set(intent.undamaged_parts)
     notes: list[str] = []
+
+    if intent.historical_damage_detected:
+        notes.append("historical_damage_referenced")
+
     clear = [f for f in relevant if f.quality_adequate and
              f.damage_visibility == "clearly_visible" and f.confidence >= confidence_threshold]
-    clear_claim_matches = [f for f in clear if f.visible_issue == target_issue and
-                           (target_part == "unknown" or f.observed_part == target_part)]
-    clear_contradictions = [f for f in clear if (target_part == "unknown" or f.observed_part == target_part) and
-                            (f.visible_issue == "none" or
-                             (f.visible_issue != "unknown" and f.visible_issue != target_issue))]
+    clear_claim_matches = [
+        f for f in clear
+        if f.observed_part not in undamaged_parts
+        and (target_part == "unknown" or f.observed_part in claimed_parts)
+        and f.visible_issue in (set(claimed_issues) | {target_issue})
+    ]
+    clear_contradictions = [
+        f for f in clear
+        if f.observed_part not in undamaged_parts
+        and (target_part == "unknown" or f.observed_part in claimed_parts)
+        and (
+            f.visible_issue == "none"
+            or (f.visible_issue != "unknown" and f.visible_issue not in (set(claimed_issues) | {target_issue}))
+        )
+    ]
 
-    if target_part != "unknown" and any(
-        f.observed_part not in {target_part, "unknown"} for f in findings if f.relevance_confirmed
+    known_parts = set(claimed_parts) | undamaged_parts | ({target_part} if target_part != "unknown" else set())
+    if known_parts and any(
+        f.observed_part not in (known_parts | {"unknown"}) for f in findings if f.relevance_confirmed
     ):
         if not clear_claim_matches:
             flags.append("wrong_object_part")
             flags = list(dict.fromkeys(flags))
 
-    if intent.issue_type == "unknown" or intent.object_part == "unknown":
+    if intent.issue_type in {"unknown", "none"} or intent.object_part == "unknown":
         status = "not_enough_information"
-        notes.append("claim_target_underspecified")
+        notes.append("no_damage_claimed" if intent.issue_type == "none" else "claim_target_underspecified")
     elif len(clear_claim_matches) and len(clear_contradictions):
         status = "not_enough_information"
         flags.append("manual_review_required")
@@ -185,7 +203,9 @@ def decide_claim(
 
     # A contradictory claim can still have sufficient evidence if the required
     # part is clearly shown; evidence sufficiency is not equivalent to support.
-    part_clearly_shown = (target_part == "unknown") or any(f.observed_part == target_part for f in clear)
+    part_clearly_shown = (target_part == "unknown") or any(
+        f.observed_part in (claimed_parts or (target_part,)) for f in clear
+    )
     evidence_met = evidence.evidence_standard_met and bool(clear) and part_clearly_shown
     evidence_reason = evidence.evidence_standard_met_reason
     if not clear:
@@ -220,10 +240,12 @@ def decide_claim(
     if status == "not_enough_information":
         severity = "unknown" if issue == "unknown" else severity
 
+    display_parts = ", ".join(claimed_parts) if claimed_parts else target_part
+    display_issues = ", ".join(claimed_issues) if claimed_issues else target_issue
     if status == "supported":
-        basis = f"Image(s) {', '.join(supporting)} visibly match the claimed {target_issue} on {target_part}."
+        basis = f"Image(s) {', '.join(supporting)} visibly match the claim on {display_parts} ({display_issues})."
     elif status == "contradicted":
-        basis = f"Image(s) {', '.join(supporting)} clearly conflict with the claimed {target_issue} on {target_part}."
+        basis = f"Image(s) {', '.join(supporting)} clearly conflict with the claimed {display_issues} on {display_parts}."
     else:
         basis = "The available images do not provide clear, consistent, high-confidence evidence for the specific claim."
     if intent.instruction_injection_detected:
