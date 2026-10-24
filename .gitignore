@@ -13,3 +13,6 @@ __pycache__/
 htmlcov/
 output.csv
 *.log
+
+# Local model response cache (may contain claim-derived data)
+.cache/

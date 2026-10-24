@@ -18,6 +18,7 @@ from code.history_risk import assess_user_history
 from code.image_inspector import inspect_one_image
 from code.image_utils import ImageLoadError, normalize_dataset_image
 from code.vision_provider import VisionProviderError, analyze_with_retries, build_vision_provider
+from code.vision_efficiency import EfficientVisionProvider
 
 OUTPUT_COLUMNS = [
     "user_id", "image_paths", "user_claim", "claim_object",
@@ -65,6 +66,8 @@ def process_claim(
     errors: list[str] = []
     model_calls = 0
     model_attempts = 0
+    provider_requests_start = getattr(provider, 'provider_requests', 0)
+    cache_hits_start = getattr(provider, 'cache_hits', 0)
 
     def _increment_attempts() -> None:
         nonlocal model_attempts
@@ -133,6 +136,8 @@ def process_claim(
         "processing_seconds": round(time.monotonic() - started, 4),
         "model_calls": model_calls,
         "model_attempts": model_attempts,
+        "provider_requests": getattr(provider, "provider_requests", 0) - provider_requests_start,
+        "cache_hits": getattr(provider, "cache_hits", 0) - cache_hits_start,
         "error": ";".join(errors) if errors else None,
     }
 
@@ -197,7 +202,15 @@ def run_pipeline(
     if limit is not None and limit < 1:
         raise ValueError("limit must be a positive integer")
     config.validate_credentials()
-    provider = build_vision_provider(config)
+    base_provider = build_vision_provider(config)
+    provider = EfficientVisionProvider(
+        base_provider,
+        cache_path=config.repo_root / ".cache" / "vision_cache.sqlite3",
+        cache_enabled=config.cache_enabled,
+        requests_per_minute=config.request_rate_per_minute,
+        provider_name=config.provider,
+        model_name=config.model_name,
+    )
     source = claims_csv or config.dataset_dir / "claims.csv"
     rows = read_claims(source)
     if limit is not None:
