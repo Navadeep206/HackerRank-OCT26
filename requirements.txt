@@ -1,0 +1,8 @@
+# Runtime dependencies for the evidence-review pipeline.
+Pillow>=11.3,<13
+pillow-heif>=1.1,<2
+python-dotenv>=1.1,<2
+
+# Install a provider SDK only when using that live model:
+# Gemini: python -m pip install google-genai
+# OpenAI: python -m pip install openai
