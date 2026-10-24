@@ -1,0 +1,13 @@
+{
+  "experiment_id": "exp-001",
+  "commit_sha": "REPLACE_WITH_GIT_COMMIT_SHA",
+  "run_date_utc": "YYYY-MM-DD",
+  "provider": "gemini",
+  "model_name": "REPLACE_WITH_MODEL_VERSION",
+  "prompt_version": "baseline-v1",
+  "changed_variable": "baseline",
+  "dataset": "dataset/sample_claims.csv",
+  "predictions_file": "baseline.csv",
+  "evaluation_report": "baseline_report.json",
+  "notes": "Do not include API keys or sensitive claim data."
+}

@@ -22,5 +22,7 @@ jobs:
         env:
           MODEL_PROVIDER: mock
         run: python -m unittest discover -s code/tests -v
+      - name: Validate evaluation comparison CLI
+        run: python -m code.evaluation.compare_runs --help
       - name: Check dataset and repository contracts
         run: python code/evaluation/dataset_audit.py
