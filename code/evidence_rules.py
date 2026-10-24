@@ -177,7 +177,7 @@ def assess_evidence(
     # visual terms, so paths alone must never produce a positive evidence label.
     enough_candidates = bool(readable)
     relevant = set(relevant_paths or ())
-    has_specific_target = intent.object_part != "unknown" and intent.issue_type != "unknown"
+    has_specific_target = intent.object_part != "unknown" and (intent.issue_type != "unknown" or bool(relevant))
     if not visual_assessment_complete:
         met = False
         notes.append("awaiting_visual_assessment")

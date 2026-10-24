@@ -120,9 +120,8 @@ def process_claim(
         quality_flags=quality_flags,
     ).to_dict()
     if errors:
-        decision["risk_flags"] = list(dict.fromkeys(
-            list(decision["risk_flags"]) + ["manual_review_required"]
-        ))
+        current_flags = [f for f in decision["risk_flags"] if f not in {"none", ""}]
+        decision["risk_flags"] = list(dict.fromkeys(current_flags + ["manual_review_required"])) or ["manual_review_required"]
         decision["decision_notes"] = list(decision["decision_notes"]) + ["image_or_model_processing_errors"]
         if decision["claim_status"] == "not_enough_information":
             decision["claim_status_justification"] = (
@@ -159,6 +158,7 @@ def read_claims(path: Path) -> list[dict[str, str]]:
 
 def _output_row(result: dict[str, Any]) -> dict[str, str]:
     decision = result["decision"]
+    rf = [f for f in decision["risk_flags"] if f not in {"none", ""}]
     return {
         "user_id": result["user_id"],
         "image_paths": result["image_paths"],
@@ -166,7 +166,7 @@ def _output_row(result: dict[str, Any]) -> dict[str, str]:
         "claim_object": result["claim_object"],
         "evidence_standard_met": str(bool(decision["evidence_standard_met"])).lower(),
         "evidence_standard_met_reason": decision["evidence_standard_met_reason"],
-        "risk_flags": ";".join(decision["risk_flags"]),
+        "risk_flags": ";".join(rf) if rf else "none",
         "issue_type": decision["issue_type"],
         "object_part": decision["object_part"],
         "claim_status": decision["claim_status"],
@@ -220,10 +220,13 @@ def run_pipeline(
     if limit is not None:
         rows = rows[:limit]
     rules = load_evidence_rules(config.dataset_dir / "evidence_requirements.csv")
-    results = [
-        process_claim(row, config, provider, rules, row_number=index)
-        for index, row in enumerate(rows, start=1)
-    ]
+    results = []
+    total = len(rows)
+    for index, row in enumerate(rows, start=1):
+        print(f"[{index}/{total}] Processing claim {row.get('user_id', 'unknown')} ({row.get('claim_object', 'unknown')})...", flush=True)
+        res = process_claim(row, config, provider, rules, row_number=index)
+        print(f"    -> Claim {index} status: {res['decision']['claim_status']} (valid_image={res['decision']['valid_image']})", flush=True)
+        results.append(res)
     write_output(results, config.output_csv)
     write_audit(results, config.output_csv.with_name("audit.jsonl"))
     return results

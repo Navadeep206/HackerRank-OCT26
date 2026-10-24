@@ -163,7 +163,8 @@ def decide_claim(
         f for f in clear
         if f.observed_part not in undamaged_parts
         and (target_part == "unknown" or f.observed_part in claimed_parts)
-        and f.visible_issue in (set(claimed_issues) | {target_issue})
+        and (target_issue == "unknown" or f.visible_issue in (set(claimed_issues) | {target_issue}))
+        and f.visible_issue not in {"none", "unknown"}
     ]
     clear_contradictions = [
         f for f in clear
@@ -171,7 +172,7 @@ def decide_claim(
         and (target_part == "unknown" or f.observed_part in claimed_parts)
         and (
             f.visible_issue == "none"
-            or (f.visible_issue != "unknown" and f.visible_issue not in (set(claimed_issues) | {target_issue}))
+            or (target_issue != "unknown" and f.visible_issue not in (set(claimed_issues) | {target_issue}))
         )
     ]
 
@@ -183,9 +184,12 @@ def decide_claim(
             flags.append("wrong_object_part")
             flags = list(dict.fromkeys(flags))
 
-    if intent.issue_type in {"unknown", "none"} or intent.object_part == "unknown":
+    if intent.object_part == "unknown":
         status = "not_enough_information"
-        notes.append("no_damage_claimed" if intent.issue_type == "none" else "claim_target_underspecified")
+        notes.append("claim_target_underspecified")
+    elif intent.issue_type == "none" and not clear_claim_matches:
+        status = "not_enough_information"
+        notes.append("no_damage_claimed")
     elif len(clear_claim_matches) and len(clear_contradictions):
         status = "not_enough_information"
         flags.append("manual_review_required")
@@ -252,17 +256,22 @@ def decide_claim(
         basis += " Instructions embedded in the conversation were ignored."
     justification = basis[:900]
 
+    cleaned_flags = [f for f in flags if f not in {"none", ""}]
+    if clear_claim_matches:
+        cleaned_flags = [f for f in cleaned_flags if f != "damage_not_visible"]
+    final_risk_flags = tuple(dict.fromkeys(cleaned_flags)) if cleaned_flags else ("none",)
+
     # History is context only: it is intentionally not read in the status branch.
     return ClaimDecision(
         claim_status=status,
         claim_status_justification=justification,
         evidence_standard_met=evidence_met,
         evidence_standard_met_reason=evidence_reason,
-        risk_flags=tuple(dict.fromkeys(flags)) or ("none",),
+        risk_flags=final_risk_flags,
         issue_type=issue,
         object_part=part if part else "unknown",
         supporting_image_ids=supporting or ("none",),
-        valid_image=any(f.quality_adequate for f in findings),
+        valid_image=any(f.quality_adequate for f in findings) if findings else True,
         severity=severity if severity in ALLOWED_SEVERITIES else "unknown",
         evidence_requirement_ids=evidence.applicable_requirement_ids,
         decision_notes=tuple(dict.fromkeys(notes + list(evidence.notes))),
