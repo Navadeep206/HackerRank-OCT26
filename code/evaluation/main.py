@@ -7,6 +7,10 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
+repo_root = Path(__file__).resolve().parent.parent.parent
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
 from code.config import AppConfig, ConfigurationError
 from code.evaluation.evaluate_predictions import evaluate, read_rows
 from code.evaluation.synthetic_edge_cases import run_synthetic_evaluation

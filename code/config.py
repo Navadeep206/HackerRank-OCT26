@@ -11,7 +11,7 @@ try:
 except ImportError:
     load_dotenv = None
 
-Provider = Literal["gemini", "openai", "mock"]
+Provider = Literal["gemini", "openai"]
 
 class ConfigurationError(ValueError):
     """Raised when environment configuration is invalid."""
@@ -51,10 +51,10 @@ class AppConfig:
         if load_dotenv is not None:
             load_dotenv(root / ".env", override=False)
         provider_raw = os.getenv("MODEL_PROVIDER", "gemini").strip().lower()
-        if provider_raw not in {"gemini", "openai", "mock"}:
-            raise ConfigurationError("MODEL_PROVIDER must be gemini, openai, or mock")
+        if provider_raw not in {"gemini", "openai"}:
+            raise ConfigurationError(f"MODEL_PROVIDER must be gemini or openai (received: {provider_raw!r})")
         provider: Provider = provider_raw  # type: ignore[assignment]
-        defaults = {"gemini": "gemini-2.5-flash", "openai": "gpt-4.1-mini", "mock": "mock"}
+        defaults = {"gemini": "gemini-2.5-flash", "openai": "gpt-4.1-mini"}
         model = os.getenv("MODEL_NAME", defaults[provider]).strip()
         if not model:
             raise ConfigurationError("MODEL_NAME cannot be empty")

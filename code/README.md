@@ -34,16 +34,16 @@ Never commit `.env`, API keys, or generated private data.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `MODEL_PROVIDER` | `gemini` | `gemini`, `openai`, or `mock` |
-| `MODEL_NAME` | Provider-specific | Model identifier |
-| `MODEL_TIMEOUT_SECONDS` | `60` | Timeout for future model requests |
+| `MODEL_PROVIDER` | `gemini` | `gemini` or `openai` (real vision LLMs only) |
+| `MODEL_NAME` | Provider-specific | Model identifier (`gemini-2.5-flash` or `gpt-4.1-mini`) |
+| `MODEL_TIMEOUT_SECONDS` | `60` | Timeout for vision model requests |
 | `MODEL_MAX_RETRIES` | `3` | Retry budget for retryable failures |
 | `MODEL_REQUESTS_PER_MINUTE` | `10` | Conservative throttle target |
-| `MODEL_CACHE_ENABLED` | `true` | Response caching in the later inference layer |
+| `MODEL_CACHE_ENABLED` | `true` | Persistent response caching (SQLite) |
 | `MAX_IMAGE_BYTES` | `20971520` | Source-file size limit (20 MiB) |
 | `MAX_IMAGE_PIXELS` | `40000000` | Decoded pixel limit |
 | `MAX_IMAGE_DIMENSION` | `2048` | Longest normalized edge |
 | `DATASET_DIR` | `dataset` | Dataset root |
 | `OUTPUT_CSV` | `output.csv` | Output CSV destination |
 
-The `mock` provider is intended for deterministic tests and is not a claim classifier.
+Production execution requires a real multimodal vision provider (`gemini` or `openai`) and corresponding credentials (`GEMINI_API_KEY` or `OPENAI_API_KEY`). Mock providers are completely removed from production runtime.

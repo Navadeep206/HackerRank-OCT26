@@ -160,23 +160,6 @@ def validate_finding(payload: Any, *, expected_object: str, image_id: str) -> Vi
     )
 
 
-class MockVisionProvider:
-    """Offline provider for deterministic wiring/tests; never fabricates damage."""
-
-    def analyze(self, image: NormalizedImage, *, claim_object: str, user_claim: str) -> dict[str, Any]:
-        return {
-            "observed_object": "unknown",
-            "observed_part": "unknown",
-            "visible_issue": "unknown",
-            "damage_visibility": "uncertain",
-            "relevance_confirmed": False,
-            "quality_adequate": False,
-            "confidence": 0.0,
-            "risk_flags": ["manual_review_required"],
-            "visual_summary": "Mock provider does not perform semantic image analysis.",
-        }
-
-
 class GeminiVisionProvider:
     """Gemini implementation; SDK is imported only when this provider is selected."""
 
@@ -187,8 +170,11 @@ class GeminiVisionProvider:
         except ImportError as exc:
             raise ConfigurationError("Install google-genai to use MODEL_PROVIDER=gemini") from exc
         config.validate_credentials()
-        self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         self._types = types
+        self._client = genai.Client(
+            api_key=os.environ["GEMINI_API_KEY"],
+            http_options=types.HttpOptions(timeout=config.request_timeout_seconds),
+        )
         self._model = config.model_name
 
     def analyze(self, image: NormalizedImage, *, claim_object: str, user_claim: str) -> dict[str, Any]:
@@ -296,8 +282,6 @@ class OpenAIVisionProvider:
 
 
 def build_vision_provider(config: AppConfig) -> VisionProvider:
-    if config.provider == "mock":
-        return MockVisionProvider()
     if config.provider == "gemini":
         return GeminiVisionProvider(config)
     if config.provider == "openai":

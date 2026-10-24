@@ -105,36 +105,74 @@ Use this repository and Python 3.11+ (CI is tested on Python 3.12):
 git clone https://github.com/Navadeep206/HackerRank-OCT26.git
 cd HackerRank-OCT26
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
-python -m pip install -r requirements.txt
-python -m pip install google-genai
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python -m pip install -r requirements.txt pillow-heif
 cp .env.example .env
 ```
 
-Edit the local, untracked `.env` and set `GEMINI_API_KEY`. Keep the default `MODEL_PROVIDER=gemini` for real inference. Do not commit API keys.
+### Real Multimodal Vision Provider Configuration
 
-Run a one-claim smoke test first (this can call Gemini and incur API usage):
+The production pipeline runs strictly with real multimodal vision LLMs (`gemini` by default, or `openai`). Mock providers are completely removed from production runtime:
+
+1. Edit `.env` (never commit this file or API keys):
+   ```bash
+   MODEL_PROVIDER=gemini
+   MODEL_NAME=gemini-2.5-flash
+   GEMINI_API_KEY=your_actual_gemini_api_key_here
+   ```
+   Or for OpenAI:
+   ```bash
+   MODEL_PROVIDER=openai
+   MODEL_NAME=gpt-4.1-mini
+   OPENAI_API_KEY=your_actual_openai_api_key_here
+   ```
+
+2. Smoke-test with one real claim:
+   ```bash
+   python -m code.run_pipeline --limit 1 --output smoke_output.csv
+   python -m code.evaluation.validate_output --predictions smoke_output.csv --claims dataset/claims.csv --limit 1
+   ```
+
+3. Run full real pipeline on the complete dataset:
+   ```bash
+   python -m code.run_pipeline --output output.csv
+   python -m code.evaluation.validate_output --predictions output.csv --claims dataset/claims.csv
+   ```
+
+Output artifact:
+- Predictions CSV: `output.csv` (14 exact required columns)
+- Audit log: `audit.jsonl` (written beside output CSV; contains per-image findings and runtime timing)
+
+### Running Offline Tests (No API Key Required)
+
+All unit tests use isolated test doubles and client stubs; they do not call live provider APIs or incur costs:
 
 ```bash
-python -m code.run_pipeline --limit 1 --output smoke_output.csv
-python -m code.evaluation.validate_output --predictions smoke_output.csv --claims dataset/claims.csv --limit 1
-```
-
-Run the full input dataset when ready:
-
-```bash
-python -m code.run_pipeline --output output.csv
-python -m code.evaluation.validate_output --predictions output.csv --claims dataset/claims.csv
-```
-
-The pipeline also writes `audit.jsonl` beside the output CSV. Treat it as claim-sensitive data and do not commit it. For offline tests and a no-key smoke run, set `MODEL_PROVIDER=mock`; the mock provider deliberately does not invent damage. Offline tests use a fake provider and do not call Gemini.
-
-For automated checks:
-
-```bash
+# Run unit and integration tests (89 tests)
 python -m unittest discover -s code/tests -v
+
+# Run labeled synthetic edge cases suite (10 edge cases)
+python -m code.evaluation.synthetic_edge_cases
+
+# Run dataset contract audit
 python code/evaluation/dataset_audit.py
 ```
+
+### Opt-In Live Provider Test
+
+When `GEMINI_API_KEY` is set in the environment, you can run the live network integration test:
+
+```bash
+export GEMINI_API_KEY=your_key
+python -m unittest code.tests.test_vision_provider.VisionProviderTests.test_opt_in_live_gemini_call -v
+```
+
+### Troubleshooting
+
+- **`ConfigurationError: gemini selected but GEMINI_API_KEY is not set`**: Set `GEMINI_API_KEY` in your shell environment or `.env` file. Mock fallback is disabled.
+- **`ConfigurationError: MODEL_PROVIDER must be gemini or openai`**: Production runtime only accepts real providers `gemini` or `openai`.
+- **Rate limiting / 429 errors**: Adjust `MODEL_REQUESTS_PER_MINUTE=10` and ensure `MODEL_CACHE_ENABLED=true` in `.env`.
+- **Image extension mismatches**: Handled automatically; images are sniffed by header bytes (JPEG, PNG, WebP, AVIF) rather than file extensions.
 
 ---
 

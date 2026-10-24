@@ -2,7 +2,5 @@
 Pillow>=11.3,<13
 pillow-heif>=1.1,<2
 python-dotenv>=1.1,<2
-
-# Install a provider SDK only when using that live model:
-# Gemini: python -m pip install google-genai
-# OpenAI: python -m pip install openai
+google-genai>=2.0,<3
+openai>=1.50,<4

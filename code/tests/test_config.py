@@ -42,9 +42,10 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaises(ConfigurationError):
                 AppConfig.from_env(Path(tempfile.gettempdir()))
 
-    def test_mock_does_not_require_credentials(self):
+    def test_mock_provider_is_rejected(self):
         with patch.dict(os.environ, {"MODEL_PROVIDER": "mock"}, clear=True):
-            AppConfig.from_env(Path(tempfile.gettempdir())).validate_credentials()
+            with self.assertRaises(ConfigurationError):
+                AppConfig.from_env(Path(tempfile.gettempdir()))
 
     def test_live_provider_requires_key(self):
         with patch.dict(os.environ, {"MODEL_PROVIDER": "gemini"}, clear=True):

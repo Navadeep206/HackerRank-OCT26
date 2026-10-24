@@ -32,7 +32,7 @@ class EdgeTestCase:
     claim_object: str
     user_claim: str
     expected_intent: dict[str, Any]
-    mock_findings: list[VisionFinding]
+    fixture_findings: list[VisionFinding]
     expected_decision: dict[str, Any]
     is_synthetic: bool = True
     rationale: str = ""
@@ -49,7 +49,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "object_part": "screen",
             "negated_issues": ["scratch", "crack"],
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_01",
                 observed_object="laptop",
@@ -79,7 +79,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "correction_detected": True,
             "undamaged_parts": ["front_bumper"],
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_02",
                 observed_object="car",
@@ -111,7 +111,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "claimed_parts": ["screen"],
             "undamaged_parts": ["keyboard"],
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_03a",
                 observed_object="laptop",
@@ -154,7 +154,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "object_part": "front_bumper",
             "historical_damage_detected": True,
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_04",
                 observed_object="car",
@@ -184,7 +184,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "claimed_parts": ["rear_bumper", "taillight"],
             "claimed_issues": ["scratch", "broken_part"],
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_05",
                 observed_object="car",
@@ -214,7 +214,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "issue_type": "glass_shatter",
             "object_part": "headlight",
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_06",
                 observed_object="car",
@@ -242,7 +242,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "issue_type": "scratch",
             "object_part": "screen",
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_07",
                 observed_object="laptop",
@@ -272,7 +272,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "issue_type": "dent",
             "object_part": "front_bumper",
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_08",
                 observed_object="car",
@@ -303,7 +303,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "object_part": "seal",
             "undamaged_parts": ["box"],
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_09",
                 observed_object="package",
@@ -333,7 +333,7 @@ SYNTHETIC_EDGE_CASES: list[EdgeTestCase] = [
             "issue_type": "dent",
             "object_part": "front_bumper",
         },
-        mock_findings=[
+        fixture_findings=[
             VisionFinding(
                 image_id="syn_img_10a",
                 observed_object="car",
@@ -399,13 +399,13 @@ def run_synthetic_evaluation(verbose: bool = False) -> dict[str, Any]:
                     intent_passed = False
 
         # Run decision engine
-        image_paths = [f"images/{f.image_id}.jpg" for f in case.mock_findings]
+        image_paths = [f"images/{f.image_id}.jpg" for f in case.fixture_findings]
         decision = decide_claim(
             claim_object=case.claim_object,
             user_claim=case.user_claim,
             image_paths=image_paths,
             dataset_dir=dataset_dir,
-            findings=case.mock_findings,
+            findings=case.fixture_findings,
             rules=None,
         )
 

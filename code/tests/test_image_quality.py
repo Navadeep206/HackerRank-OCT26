@@ -14,7 +14,7 @@ from code.image_utils import normalize_dataset_image
 def test_config(root: Path) -> AppConfig:
     return AppConfig(
         repo_root=root, dataset_dir=root / "dataset", output_csv=root / "output.csv",
-        provider="mock", model_name="mock", request_timeout_seconds=5.0,
+        provider="gemini", model_name="gemini-2.5-flash", request_timeout_seconds=5.0,
         max_retries=1, max_image_bytes=1024 * 1024, max_image_pixels=100_000,
         max_image_dimension=512, request_rate_per_minute=10, cache_enabled=True,
     )

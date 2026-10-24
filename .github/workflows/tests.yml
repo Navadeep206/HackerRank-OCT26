@@ -18,18 +18,23 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pillow-heif
-      - name: Run unit tests without live API calls
-        env:
-          MODEL_PROVIDER: mock
+      - name: Run unit test suite (isolated test doubles and stubs)
         run: python -m unittest discover -s code/tests -v
-      - name: Validate evaluation comparison CLI
-        run: python -m code.evaluation.compare_runs --help
-      - name: Smoke-test pipeline with mock provider (no API key)
-        env:
-          MODEL_PROVIDER: mock
-          MODEL_CACHE_ENABLED: "false"
+      - name: Run synthetic edge cases evaluation
+        run: python -m code.evaluation.synthetic_edge_cases
+      - name: Validate pipeline and evaluation CLI interfaces
         run: |
-          python -m code.run_pipeline --limit 1 --output /tmp/orchestrate-smoke.csv
-          python -m code.evaluation.validate_output --predictions /tmp/orchestrate-smoke.csv --claims dataset/claims.csv --limit 1
+          python -m code.run_pipeline --help
+          python -m code.evaluation.main --help
+          python -m code.evaluation.compare_runs --help
       - name: Check dataset and repository contracts
         run: python code/evaluation/dataset_audit.py
+      - name: Opt-in live provider smoke test (runs only when secrets configured)
+        if: env.GEMINI_API_KEY != ''
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MODEL_PROVIDER: gemini
+          MODEL_CACHE_ENABLED: "false"
+        run: |
+          python -m code.run_pipeline --limit 1 --output /tmp/live-smoke.csv
+          python -m code.evaluation.validate_output --predictions /tmp/live-smoke.csv --claims dataset/claims.csv --limit 1
