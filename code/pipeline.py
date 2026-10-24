@@ -64,6 +64,7 @@ def process_claim(
     findings = []
     image_records: list[dict[str, Any]] = []
     errors: list[str] = []
+    quality_flags: list[str] = []
     model_calls = 0
     model_attempts = 0
     provider_requests_start = getattr(provider, 'provider_requests', 0)
@@ -76,6 +77,8 @@ def process_claim(
     for relative_path in paths:
         observation = inspect_one_image(config.dataset_dir, relative_path, config)
         record = observation.to_dict()
+        if observation.quality is not None:
+            quality_flags.extend(observation.quality.quality_flags)
         if not observation.load_ok or observation.quality is None:
             errors.append(f"{observation.image_id}:image_unusable")
             image_records.append(record)
@@ -114,6 +117,7 @@ def process_claim(
         findings=findings,
         rules=rules,
         user_history_flags=history_flags,
+        quality_flags=quality_flags,
     ).to_dict()
     if errors:
         decision["risk_flags"] = list(dict.fromkeys(

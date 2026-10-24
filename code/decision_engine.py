@@ -97,6 +97,7 @@ def decide_claim(
     rules: list[EvidenceRule] | None = None,
     user_history_flags: Iterable[str] = (),
     confidence_threshold: float = 0.70,
+    quality_flags: Iterable[str] = (),
 ) -> ClaimDecision:
     """Combine the claim intent and per-image findings into a conservative decision.
 
@@ -119,6 +120,10 @@ def decide_claim(
 
     flags = _flags_from_findings(findings)
     flags.extend(flag for flag in user_history_flags if flag in ALLOWED_FLAGS)
+    for qf in quality_flags:
+        mapped = QUALITY_FLAG_MAP.get(qf, qf)
+        if mapped in ALLOWED_FLAGS:
+            flags.append(mapped)
     if intent.instruction_injection_detected:
         flags.append("text_instruction_present")
     if any(f.observed_object not in {claim_object, "unknown"} for f in findings):
@@ -149,9 +154,16 @@ def decide_claim(
              f.damage_visibility == "clearly_visible" and f.confidence >= confidence_threshold]
     clear_claim_matches = [f for f in clear if f.visible_issue == target_issue and
                            (target_part == "unknown" or f.observed_part == target_part)]
-    clear_contradictions = [f for f in clear if f.visible_issue == "none" or
-                            (f.visible_issue != "unknown" and f.visible_issue != target_issue) or
-                            (target_part != "unknown" and f.observed_part != target_part)]
+    clear_contradictions = [f for f in clear if (target_part == "unknown" or f.observed_part == target_part) and
+                            (f.visible_issue == "none" or
+                             (f.visible_issue != "unknown" and f.visible_issue != target_issue))]
+
+    if target_part != "unknown" and any(
+        f.observed_part not in {target_part, "unknown"} for f in findings if f.relevance_confirmed
+    ):
+        if not clear_claim_matches:
+            flags.append("wrong_object_part")
+            flags = list(dict.fromkeys(flags))
 
     if intent.issue_type == "unknown" or intent.object_part == "unknown":
         status = "not_enough_information"
@@ -173,12 +185,18 @@ def decide_claim(
 
     # A contradictory claim can still have sufficient evidence if the required
     # part is clearly shown; evidence sufficiency is not equivalent to support.
-    evidence_met = evidence.evidence_standard_met and bool(clear)
+    part_clearly_shown = (target_part == "unknown") or any(f.observed_part == target_part for f in clear)
+    evidence_met = evidence.evidence_standard_met and bool(clear) and part_clearly_shown
     evidence_reason = evidence.evidence_standard_met_reason
     if not clear:
         evidence_reason = (
             "No relevant image met the clarity and confidence threshold; "
             "the image set is insufficient for an automated claim decision."
+        )
+    elif not part_clearly_shown:
+        evidence_reason = (
+            f"The claimed {target_part} was not clearly visible in the submitted image(s); "
+            "the evidence standard for this claim was not met."
         )
     elif evidence_met:
         evidence_reason = (
