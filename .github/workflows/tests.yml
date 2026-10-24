@@ -24,5 +24,12 @@ jobs:
         run: python -m unittest discover -s code/tests -v
       - name: Validate evaluation comparison CLI
         run: python -m code.evaluation.compare_runs --help
+      - name: Smoke-test pipeline with mock provider (no API key)
+        env:
+          MODEL_PROVIDER: mock
+          MODEL_CACHE_ENABLED: "false"
+        run: |
+          python -m code.run_pipeline --limit 1 --output /tmp/orchestrate-smoke.csv
+          python -m code.evaluation.validate_output --predictions /tmp/orchestrate-smoke.csv --claims dataset/claims.csv --limit 1
       - name: Check dataset and repository contracts
         run: python code/evaluation/dataset_audit.py

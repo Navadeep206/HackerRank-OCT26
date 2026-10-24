@@ -99,14 +99,42 @@ Suggested conventions:
 
 ## Quickstart
 
-Clone this repository:
+Use this repository and Python 3.11+ (CI is tested on Python 3.12):
 
 ```bash
-git clone git@github.com:interviewstreet/hackerrank-orchestrate-june26.git
-cd hackerrank-orchestrate-june26
+git clone https://github.com/Navadeep206/HackerRank-OCT26.git
+cd HackerRank-OCT26
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+python -m pip install -r requirements.txt
+python -m pip install google-genai
+cp .env.example .env
 ```
 
-You are free to use any language or runtime. Python, JavaScript, and TypeScript are all reasonable choices.
+Edit the local, untracked `.env` and set `GEMINI_API_KEY`. Keep the default `MODEL_PROVIDER=gemini` for real inference. Do not commit API keys.
+
+Run a one-claim smoke test first (this can call Gemini and incur API usage):
+
+```bash
+python -m code.run_pipeline --limit 1 --output smoke_output.csv
+python -m code.evaluation.validate_output --predictions smoke_output.csv --claims dataset/claims.csv --limit 1
+```
+
+Run the full input dataset when ready:
+
+```bash
+python -m code.run_pipeline --output output.csv
+python -m code.evaluation.validate_output --predictions output.csv --claims dataset/claims.csv
+```
+
+The pipeline also writes `audit.jsonl` beside the output CSV. Treat it as claim-sensitive data and do not commit it. For offline tests and a no-key smoke run, set `MODEL_PROVIDER=mock`; the mock provider deliberately does not invent damage. Offline tests use a fake provider and do not call Gemini.
+
+For automated checks:
+
+```bash
+python -m unittest discover -s code/tests -v
+python code/evaluation/dataset_audit.py
+```
 
 ---
 
