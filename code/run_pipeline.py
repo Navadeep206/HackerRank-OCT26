@@ -1,9 +1,10 @@
 """CLI entry point for the Gemini-first claims pipeline."""
 from __future__ import annotations
 import argparse
+import sys
 from dataclasses import replace
 from pathlib import Path
-from code.config import AppConfig
+from code.config import AppConfig, ConfigurationError
 from code.pipeline import run_pipeline
 
 
@@ -13,10 +14,18 @@ def main() -> int:
     parser.add_argument("--limit", type=int, help="Process only first N claims; use 1 for smoke test")
     parser.add_argument("--output", type=Path, help="Output CSV path override")
     args = parser.parse_args()
-    config = AppConfig.from_env()
+    try:
+        config = AppConfig.from_env()
+    except ConfigurationError as exc:
+        print(f"Configuration error: {exc}", file=sys.stderr)
+        return 2
     if args.output:
         config = replace(config, output_csv=args.output.resolve())
-    results = run_pipeline(config, claims_csv=args.claims, limit=args.limit)
+    try:
+        results = run_pipeline(config, claims_csv=args.claims, limit=args.limit)
+    except (OSError, ValueError, ConfigurationError) as exc:
+        print(f"Pipeline could not start: {exc}", file=sys.stderr)
+        return 2
     calls = sum(result["model_calls"] for result in results)
     attempts = sum(result.get("model_attempts", result["model_calls"]) for result in results)
     requests = sum(result.get("provider_requests", 0) for result in results)

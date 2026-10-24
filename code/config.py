@@ -1,5 +1,6 @@
 """Validated runtime configuration for the evidence-review pipeline."""
 from __future__ import annotations
+import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,10 +20,14 @@ def _number(name: str, default: str, cast: type) -> int | float:
     raw = os.getenv(name, default).strip()
     try:
         value = cast(raw)
-    except ValueError as exc:
+    except (ValueError, OverflowError) as exc:
         raise ConfigurationError(f"{name} must be a valid {cast.__name__}") from exc
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ConfigurationError(f"{name} must be finite")
     if value <= 0:
         raise ConfigurationError(f"{name} must be greater than zero")
+    if cast is int and str(value) != raw:
+        raise ConfigurationError(f"{name} must be a whole number")
     return value
 
 @dataclass(frozen=True, slots=True)
@@ -58,15 +63,28 @@ class AppConfig:
             raise ConfigurationError("MODEL_CACHE_ENABLED must be true/false, 1/0, or yes/no")
         dataset = (root / os.getenv("DATASET_DIR", "dataset")).resolve()
         output = (root / os.getenv("OUTPUT_CSV", "output.csv")).resolve()
+        timeout = float(_number("MODEL_TIMEOUT_SECONDS", "60", float))
+        retries = int(_number("MODEL_MAX_RETRIES", "3", int))
+        image_bytes = int(_number("MAX_IMAGE_BYTES", str(20 * 1024 * 1024), int))
+        image_pixels = int(_number("MAX_IMAGE_PIXELS", "40000000", int))
+        image_dimension = int(_number("MAX_IMAGE_DIMENSION", "2048", int))
+        requests_per_minute = int(_number("MODEL_REQUESTS_PER_MINUTE", "10", int))
+        bounds = (
+            (timeout, 600, "MODEL_TIMEOUT_SECONDS"),
+            (retries, 10, "MODEL_MAX_RETRIES"),
+            (requests_per_minute, 600, "MODEL_REQUESTS_PER_MINUTE"),
+            (image_bytes, 200 * 1024 * 1024, "MAX_IMAGE_BYTES"),
+            (image_pixels, 200_000_000, "MAX_IMAGE_PIXELS"),
+            (image_dimension, 8192, "MAX_IMAGE_DIMENSION"),
+        )
+        for value, maximum, name in bounds:
+            if value > maximum:
+                raise ConfigurationError(f"{name} must not exceed {maximum}")
         return cls(
             repo_root=root, dataset_dir=dataset, output_csv=output, provider=provider,
-            model_name=model,
-            request_timeout_seconds=float(_number("MODEL_TIMEOUT_SECONDS", "60", float)),
-            max_retries=int(_number("MODEL_MAX_RETRIES", "3", int)),
-            max_image_bytes=int(_number("MAX_IMAGE_BYTES", str(20 * 1024 * 1024), int)),
-            max_image_pixels=int(_number("MAX_IMAGE_PIXELS", "40000000", int)),
-            max_image_dimension=int(_number("MAX_IMAGE_DIMENSION", "2048", int)),
-            request_rate_per_minute=int(_number("MODEL_REQUESTS_PER_MINUTE", "10", int)),
+            model_name=model, request_timeout_seconds=timeout, max_retries=retries,
+            max_image_bytes=image_bytes, max_image_pixels=image_pixels,
+            max_image_dimension=image_dimension, request_rate_per_minute=requests_per_minute,
             cache_enabled=cache_raw in {"true", "1", "yes"},
         )
 

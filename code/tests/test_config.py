@@ -26,6 +26,22 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaises(ConfigurationError):
                 AppConfig.from_env(Path(tempfile.gettempdir()))
 
+    def test_non_finite_timeout_rejected(self):
+        for raw in ("nan", "inf", "-inf"):
+            with self.subTest(raw=raw), patch.dict(os.environ, {"MODEL_TIMEOUT_SECONDS": raw}, clear=True):
+                with self.assertRaises(ConfigurationError):
+                    AppConfig.from_env(Path(tempfile.gettempdir()))
+
+    def test_integer_settings_reject_fractional_values(self):
+        with patch.dict(os.environ, {"MODEL_MAX_RETRIES": "2.5"}, clear=True):
+            with self.assertRaises(ConfigurationError):
+                AppConfig.from_env(Path(tempfile.gettempdir()))
+
+    def test_extreme_retry_count_rejected(self):
+        with patch.dict(os.environ, {"MODEL_MAX_RETRIES": "1000"}, clear=True):
+            with self.assertRaises(ConfigurationError):
+                AppConfig.from_env(Path(tempfile.gettempdir()))
+
     def test_mock_does_not_require_credentials(self):
         with patch.dict(os.environ, {"MODEL_PROVIDER": "mock"}, clear=True):
             AppConfig.from_env(Path(tempfile.gettempdir())).validate_credentials()

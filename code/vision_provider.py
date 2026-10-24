@@ -10,7 +10,7 @@ import os
 import random
 import time
 from dataclasses import asdict, dataclass
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from code.config import AppConfig, ConfigurationError
 from code.image_inspector import ImageObservation
@@ -301,7 +301,7 @@ def analyze_with_retries(
     base_delay_seconds: float = 0.25,
     sleep=time.sleep,
     rng: random.Random | None = None,
-    on_attempt=None,
+    on_attempt: Callable[[int], None] | None = None,
 ) -> VisionFinding:
     """Retry provider/format failures with capped exponential backoff and jitter."""
     if max_retries < 0 or base_delay_seconds < 0:
