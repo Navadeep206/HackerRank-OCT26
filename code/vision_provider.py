@@ -28,7 +28,7 @@ ALLOWED_FLAGS = {
     "blurry_image", "cropped_or_obstructed", "low_light_or_glare", "wrong_angle",
     "wrong_object", "wrong_object_part", "damage_not_visible", "claim_mismatch",
     "possible_manipulation", "non_original_image", "text_instruction_present",
-    "manual_review_required",
+    "manual_review_required", "user_history_risk",
 }
 PARTS = {
     "car": {"front_bumper", "rear_bumper", "door", "hood", "windshield", "side_mirror",
