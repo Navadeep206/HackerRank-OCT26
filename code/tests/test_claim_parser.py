@@ -18,8 +18,8 @@ class ClaimParserTests(unittest.TestCase):
         )
         self.assertTrue(result.correction_detected)
         self.assertIn("screen", result.mentioned_parts)
-        self.assertEqual(result.object_part, "screen")  # first textual mention; review logic can inspect all parts
-        self.assertIn("crack", result.negated_issues)
+        self.assertEqual(result.object_part, "keyboard")  # associate the damage with the corrected part
+        self.assertNotIn("crack", result.negated_issues)  # "not the screen" negates the part, not the damage
 
     def test_package_damage_aliases(self):
         result = extract_claim_intent("The shipping box is crushed and the seal is torn.", "package")

@@ -162,6 +162,23 @@ def _detect_part(text: str, claim_object: str) -> tuple[str, tuple[str, ...]]:
     return (ordered[0] if ordered else "unknown", tuple(ordered))
 
 
+def _part_for_issue(text: str, claim_object: str, issue_start: int, fallback: str) -> str:
+    """Associate the primary positive issue with the closest preceding part mention."""
+    found: list[tuple[int, int, str]] = []
+    for part, aliases in PART_ALIASES[claim_object].items():
+        for alias in aliases:
+            pattern = re.compile(r"(?<!\w)" + re.escape(alias).replace(r"\ ", r"\s+") + r"(?!\w)")
+            for match in pattern.finditer(text):
+                found.append((match.start(), -len(alias), part))
+    if not found:
+        return fallback
+    found.sort()
+    preceding = [item for item in found if item[0] <= issue_start]
+    if preceding:
+        return preceding[-1][2]
+    return min(found, key=lambda item: (abs(item[0] - issue_start), item[0]))[2]
+
+
 def _detect_object(text: str, supplied_object: str | None) -> str:
     if supplied_object in {"car", "laptop", "package"}:
         return supplied_object
@@ -194,8 +211,9 @@ def extract_claim_intent(user_claim: str, claim_object: str | None = None) -> Cl
     negated: list[str] = []
     positive: list[tuple[IssueType, str, int]] = []
     for issue, alias, start in mentions:
-        part_correction_after = re.search(r"\bnot\s+(?:the\s+)?(?:screen|display|keyboard|hinge|door|bumper|hood|windshield|headlight|mirror|box|seal|label)\b", text[start + len(alias):])
-        if _is_negated(text, alias, start) or part_correction_after:
+        # Negation must target the damage phrase itself. A later correction such as
+        # "the keyboard is cracked, not the screen" negates the part, not the crack.
+        if _is_negated(text, alias, start):
             # Record that the issue is disclaimed for a corrected part without erasing its positive mention.
             if issue not in negated:
                 negated.append(issue)
@@ -208,8 +226,10 @@ def extract_claim_intent(user_claim: str, claim_object: str | None = None) -> Cl
         notes.append("multiple_issue_types_mentioned_primary_is_first_positive_mention")
 
     part, parts = _detect_part(text, obj) if obj in PARTS else ("unknown", ())
+    if positive and obj in PARTS:
+        part = _part_for_issue(text, obj, positive[0][2], part)
     if len(parts) > 1:
-        notes.append("multiple_parts_mentioned_primary_is_first_textual_mention")
+        notes.append("multiple_parts_mentioned_primary_is_associated_with_primary_issue")
     correction = any(marker in text for marker in CORRECTION_MARKERS)
     if correction:
         notes.append("correction_or_negation_language_present")
