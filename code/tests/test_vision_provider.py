@@ -67,11 +67,13 @@ class VisionProviderTests(unittest.TestCase):
             Image.new("RGB", (100, 100), "white").save(path)
             image = normalize_dataset_image(root, "img.png")
             provider = Flaky()
+            attempts = []
             result = analyze_with_retries(provider, image, claim_object="laptop", user_claim="cracked screen",
                                           max_retries=2, base_delay_seconds=0, sleep=lambda _: None,
-                                          rng=random.Random(1))
+                                          rng=random.Random(1), on_attempt=attempts.append)
             self.assertTrue(result.semantic_assessment_complete)
             self.assertEqual(provider.calls, 2)
+            self.assertEqual(attempts, [1, 2])
 
     def test_mock_provider_does_not_fabricate_damage(self):
         with tempfile.TemporaryDirectory() as tmp:

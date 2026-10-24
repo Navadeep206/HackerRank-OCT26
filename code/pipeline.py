@@ -64,6 +64,11 @@ def process_claim(
     image_records: list[dict[str, Any]] = []
     errors: list[str] = []
     model_calls = 0
+    model_attempts = 0
+
+    def _increment_attempts() -> None:
+        nonlocal model_attempts
+        model_attempts += 1
 
     for relative_path in paths:
         observation = inspect_one_image(config.dataset_dir, relative_path, config)
@@ -86,6 +91,7 @@ def process_claim(
             finding = analyze_with_retries(
                 provider, normalized, claim_object=claim_object,
                 user_claim=user_claim, max_retries=config.max_retries,
+                on_attempt=lambda _attempt: _increment_attempts(),
             )
             findings.append(finding)
             record.update(finding.to_dict())
@@ -126,6 +132,7 @@ def process_claim(
         "history_assessment": history,
         "processing_seconds": round(time.monotonic() - started, 4),
         "model_calls": model_calls,
+        "model_attempts": model_attempts,
         "error": ";".join(errors) if errors else None,
     }
 

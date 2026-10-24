@@ -301,6 +301,7 @@ def analyze_with_retries(
     base_delay_seconds: float = 0.25,
     sleep=time.sleep,
     rng: random.Random | None = None,
+    on_attempt=None,
 ) -> VisionFinding:
     """Retry provider/format failures with capped exponential backoff and jitter."""
     if max_retries < 0 or base_delay_seconds < 0:
@@ -309,6 +310,8 @@ def analyze_with_retries(
     last_error: Exception | None = None
     for attempt in range(max_retries + 1):
         try:
+            if on_attempt is not None:
+                on_attempt(attempt + 1)
             payload = provider.analyze(image, claim_object=claim_object, user_claim=user_claim)
             return validate_finding(payload, expected_object=claim_object, image_id=image.image_id)
         except (VisionProviderError, ValueError, TypeError, KeyError) as exc:
